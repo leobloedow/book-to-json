@@ -41,7 +41,7 @@ def process_pdf(file):
     # gets table of contents
     toc = doc.get_toc()
     if not toc:
-        print("This PDF has no table of contents.")
+        print("no TOC found")
         return []
 
     chapters = []
@@ -125,7 +125,7 @@ def main(file):
     elif ext == '.epub':
         chapters = process_epub(file)
     else:
-        print('Only PDF and EPUB are supported.')
+        print('only .pdf and .epub are supported.')
         return
 
     # clean chapter titles
@@ -138,6 +138,6 @@ def main(file):
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
-        print('Use: python booktojson.py book.pdf|book.epub')
+        print('use: python booktojson.py book.pdf|book.epub')
     else:
         main(sys.argv[1])
