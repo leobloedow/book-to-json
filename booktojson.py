@@ -1,34 +1,44 @@
+#sys -> to read command line arguments
+#os -> open file
+#json -> output json format
 import sys, os, json
-import fitz  # For reading PDFs (PyMuPDF)
+#fitz -> handle pdf files
+import fitz
+#ebooklib -> handle EPUB files
 from ebooklib import epub
+# bs4 -> handle html content in epub files
 from bs4 import BeautifulSoup
 
-# Clean each line: strip whitespace, merge hyphenated words
-
+# remove empty lines and hyphenated words and join everything into a single line
 def clean_page_text(text):
+    # split text into lines
     lines = text.splitlines()
     cleaned = []
     buffer = ''
     for line in lines:
+        #removes spaces at the beginning and end
         line = line.strip()
+        # skip empty lines
         if not line:
             continue
+        # skip numbers only lines (page numbers)
         if line.isdigit():
-            # Skip lines that are only numbers (page numbers)
             continue
+        # buffer lines ending with "-"
         if line.endswith('-'):
             buffer += line[:-1]
         else:
             cleaned.append(buffer + line)
             buffer = ''
+    # join buffer with the last line
     if buffer:
         cleaned.append(buffer)
     return ' '.join(cleaned)
 
-# Process PDF using table of contents
-
+# process pdf table of contents
 def process_pdf(file):
     doc = fitz.open(file)
+    # gets table of contents
     toc = doc.get_toc()
     if not toc:
         print("This PDF has no table of contents.")
@@ -38,22 +48,23 @@ def process_pdf(file):
     for i in range(len(toc)):
         level, title, start = toc[i]
         if not title.strip() or not title.strip()[0].isdigit():
-            # Skip chapters whose title doesn't start with a digit
+            # skip titles that dont start with a digit (skip covers, flaps, etc.)
             continue
-        start -= 1  # Convert to 0-based index
+        start -= 1 # first index is 0
         end = toc[i + 1][2] - 1 if i + 1 < len(toc) else len(doc)
 
         text = ''
         for page_num in range(start, end):
             text += doc.load_page(page_num).get_text()
 
+        # structure the text data
         chapter_text = clean_page_text(text)
         chapters.append({"title": title, "text": chapter_text})
 
     return chapters
 
-# Process EPUB using spine order
-
+#process epub table of contents
+# AI did this i really dont know how epub works
 def process_epub(file):
     book = epub.read_epub(file)
     chapters = []
@@ -71,43 +82,44 @@ def process_epub(file):
 
     return chapters
 
-# Remove repeated titles from chapter text
+# remove name of the chapter from text, if it appears in footnotes or headers
 def remove_repeated_titles(text, title):
+    # re -> regex support
     import re
 
-    # Extract phrase after leading digits and spaces
+    #remove starting numbers and spaces from title to check
     phrase = title.lstrip(' 0123456789')
     phrase = phrase.strip()
     if not phrase:
         return text
 
-    # Find first occurrence index of phrase in text
+    # find the first occurrence
     first_pos = text.find(phrase)
     if first_pos == -1:
-        return text  # phrase not found, return original
+        return text
 
     before = text[:first_pos + len(phrase)]
     after = text[first_pos + len(phrase):]
 
-    # Regex pattern to find phrase with optional space before or after
+    # find all occurrences of the phrase
     escaped_phrase = re.escape(phrase)
     pattern = re.compile(r'(\s?)' + escaped_phrase + r'(\s?)')
 
-    # Replace all occurrences except first with a single space
+    # remove all occurrences
     def replacer(match):
         return ' '
 
     after_cleaned = pattern.sub(replacer, after)
 
-    # Collapse multiple spaces
+    # remove extra spaces
     after_cleaned = re.sub(r'\s+', ' ', after_cleaned).strip()
 
     return before + ' ' + after_cleaned if after_cleaned else before
 
-# Main function
 def main(file):
     ext = os.path.splitext(file)[1].lower()
 
+    # decides if its pdf or epub
     if ext == '.pdf':
         chapters = process_pdf(file)
     elif ext == '.epub':
@@ -116,16 +128,16 @@ def main(file):
         print('Only PDF and EPUB are supported.')
         return
 
-    # Optionally clean repeated titles
+    # clean chapter titles
     for chapter in chapters:
         chapter['text'] = remove_repeated_titles(chapter['text'], chapter['title'])
 
+    # output json file
     with open('out.json', 'w', encoding='utf-8') as f:
         json.dump(chapters, f, ensure_ascii=False, indent=2)
 
-# Run the script
 if __name__ == '__main__':
     if len(sys.argv) != 2:
-        print('Usage: python script.py book.pdf|book.epub')
+        print('Use: python booktojson.py book.pdf|book.epub')
     else:
         main(sys.argv[1])
