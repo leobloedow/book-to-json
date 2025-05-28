@@ -120,7 +120,7 @@ def main(file):
     for chapter in chapters:
         chapter['text'] = remove_repeated_titles(chapter['text'], chapter['title'])
 
-    with open('chapters.json', 'w', encoding='utf-8') as f:
+    with open('out.json', 'w', encoding='utf-8') as f:
         json.dump(chapters, f, ensure_ascii=False, indent=2)
 
 # Run the script
